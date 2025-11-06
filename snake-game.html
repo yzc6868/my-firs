@@ -1,42 +1,109 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>贪吃蛇小游戏</title>
+    <title>贪吃蛇小游戏（手机版）</title>
     <style>
-        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f0f0f0; }
-        #game-board { border: 2px solid #333; background: #fff; }
+        body { 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            background: #f0f0f0; 
+        }
+        #game-board { 
+            border: 2px solid #333; 
+            background: #fff; 
+            width: 90vw; /* 适配手机宽度 */
+            height: 90vw;
+            max-width: 350px;
+            max-height: 350px;
+        }
+        /* 手机虚拟方向键样式 */
+        .controls { 
+            margin-top: 20px; 
+            display: grid; 
+            grid-template-columns: repeat(3, 80px); 
+            gap: 10px; 
+        }
+        .btn { 
+            width: 80px; 
+            height: 80px; 
+            font-size: 24px; 
+            border: none; 
+            background: #333; 
+            color: #fff; 
+            border-radius: 8px; 
+            touch-action: manipulation; /* 避免手机点击延迟 */
+        }
+        .btn:disabled { 
+            background: #999; 
+        }
     </style>
 </head>
 <body>
-    <canvas id="game-board" width="400" height="400"></canvas>
+    <canvas id="game-board"></canvas>
+    <!-- 手机端虚拟方向按钮 -->
+    <div class="controls">
+        <button class="btn" id="up" disabled>↑</button>
+        <button class="btn" id="left">←</button>
+        <button class="btn" id="right">→</button>
+        <button class="btn" id="down">↓</button>
+    </div>
 
     <script>
         const canvas = document.getElementById('game-board');
         const ctx = canvas.getContext('2d');
         const gridSize = 20;
+        // 适配画布尺寸
+        const boardSize = Math.min(window.innerWidth * 0.9, 350);
+        canvas.width = boardSize;
+        canvas.height = boardSize;
         const tileCount = canvas.width / gridSize;
 
-        // 蛇的初始状态
-        let snake = [{ x: 10, y: 10 }];
-        let food = { x: 15, y: 15 };
+        // 游戏状态
+        let snake = [{ x: 5, y: 5 }];
+        let food = { x: 8, y: 8 };
         let dx = 1; // x方向速度
         let dy = 0; // y方向速度
         let gameOver = false;
 
-        // 控制方向
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft' && dx !== 1) { dx = -1; dy = 0; }
-            if (e.key === 'ArrowRight' && dx !== -1) { dx = 1; dy = 0; }
-            if (e.key === 'ArrowUp' && dy !== 1) { dx = 0; dy = -1; }
-            if (e.key === 'ArrowDown' && dy !== -1) { dx = 0; dy = 1; }
+        // 绑定方向按钮
+        const upBtn = document.getElementById('up');
+        const leftBtn = document.getElementById('left');
+        const rightBtn = document.getElementById('right');
+        const downBtn = document.getElementById('down');
+
+        // 按钮控制方向（防止反向移动）
+        upBtn.addEventListener('click', () => { 
+            if (dy !== 1) { dx = 0; dy = -1; updateBtnState(); } 
+        });
+        leftBtn.addEventListener('click', () => { 
+            if (dx !== 1) { dx = -1; dy = 0; updateBtnState(); } 
+        });
+        rightBtn.addEventListener('click', () => { 
+            if (dx !== -1) { dx = 1; dy = 0; updateBtnState(); } 
+        });
+        downBtn.addEventListener('click', () => { 
+            if (dy !== -1) { dx = 0; dy = 1; updateBtnState(); } 
         });
 
-        // 绘制元素
+        // 更新按钮禁用状态（避免反向操作）
+        function updateBtnState() {
+            upBtn.disabled = (dy === 1);
+            leftBtn.disabled = (dx === 1);
+            rightBtn.disabled = (dx === -1);
+            downBtn.disabled = (dy === -1);
+        }
+
+        // 绘制游戏元素
         function draw() {
             if (gameOver) {
                 ctx.fillStyle = 'red';
-                ctx.font = '24px Arial';
-                ctx.fillText('游戏结束！按F5重玩', canvas.width/2 - 100, canvas.height/2);
+                ctx.font = '18px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('游戏结束！刷新重玩', canvas.width/2, canvas.height/2);
                 return;
             }
 
@@ -47,38 +114,57 @@
             // 绘制蛇
             ctx.fillStyle = 'green';
             snake.forEach(segment => {
-                ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
+                ctx.fillRect(
+                    segment.x * gridSize, 
+                    segment.y * gridSize, 
+                    gridSize - 2, 
+                    gridSize - 2
+                );
             });
 
             // 绘制食物
             ctx.fillStyle = 'red';
-            ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 2, gridSize - 2);
+            ctx.fillRect(
+                food.x * gridSize, 
+                food.y * gridSize, 
+                gridSize - 2, 
+                gridSize - 2
+            );
 
-            // 移动蛇
+            // 移动蛇头
             const head = { x: snake[0].x + dx, y: snake[0].y + dy };
             snake.unshift(head);
 
-            // 吃食物
+            // 判断是否吃到食物
             if (head.x === food.x && head.y === food.y) {
                 // 生成新食物（避免出现在蛇身上）
                 let newFood;
                 do {
-                    newFood = { x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount) };
+                    newFood = { 
+                        x: Math.floor(Math.random() * tileCount), 
+                        y: Math.floor(Math.random() * tileCount) 
+                    };
                 } while (snake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
                 food = newFood;
             } else {
-                snake.pop(); // 没吃食物则删除尾部
+                // 没吃到食物则删除尾部
+                snake.pop();
             }
 
-            // 碰撞检测（撞墙/撞自己）
-            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount ||
-                snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y)) {
+            // 碰撞检测（撞墙/撞自身）
+            if (
+                head.x < 0 || head.x >= tileCount || 
+                head.y < 0 || head.y >= tileCount ||
+                snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y)
+            ) {
                 gameOver = true;
             }
         }
 
-        // 启动游戏（每100毫秒更新一次）
-        setInterval(draw, 100);
+        // 启动游戏（每150毫秒更新一次，适配手机操作节奏）
+        setInterval(draw, 150);
+        // 初始化按钮状态
+        updateBtnState();
     </script>
 </body>
 </html>
